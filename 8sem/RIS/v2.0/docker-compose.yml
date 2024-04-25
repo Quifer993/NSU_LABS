@@ -1,0 +1,78 @@
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - '27017:27017'
+    volumes:
+      - crackDB:/data/db
+#      - ./rs.sh:/scripts/rs.sh
+#    command: bash -c "chmod +x /scripts/rs.sh && /scripts/rs.sh && mongod --replSet rs0 && mongod --bind_ip_all"
+    command: mongod --replSet rs0 && mongod --bind_ip_all
+
+  mongodb-1:
+    image: mongo:latest
+    ports:
+      - '27018:27017'
+    volumes:
+      - crackDB1:/data/db
+    command: mongod --replSet rs0 && mongod --bind_ip_all
+
+  mongodb-2:
+    image: mongo:latest
+    ports:
+      - '27019:27017'
+    volumes:
+      - crackDB2:/data/db
+    command: mongod --replSet rs0 && mongod --bind_ip_all
+
+  mongosetup:
+    image: mongo:latest
+    depends_on:
+      - mongodb
+      - mongodb-1
+      - mongodb-2
+    restart: "no"
+    volumes:
+      - ./rs.sh:/scripts/rs.sh
+    entrypoint: [ "bash", "-c", "/scripts/rs.sh" ]
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: 'rabbitmq'
+    ports:
+        - 5672:5672
+        - 15672:15672
+    volumes:
+        - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+        - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+
+
+  manager:
+    build:
+      context: ./Manager
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+
+  worker1:
+    build:
+      context: ./Worker
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+
+  worker2:
+    build:
+      context: ./Worker
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+
+networks:
+  rabbitmq_go_net:
+    driver: bridge
+volumes:
+  crackDB:
+  crackDB1:
+  crackDB2:
